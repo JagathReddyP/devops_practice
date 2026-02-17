@@ -7,4 +7,4 @@ date
 
 DATE=$(date)
 
-echo "todays date is : $DATE
+echo "today's date is : $DATE "
