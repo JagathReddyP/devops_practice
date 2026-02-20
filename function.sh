@@ -36,6 +36,6 @@ then
 echo "mysql-server is not installed, installing.... it now"
 dnf install mysql-server -y
 VALIDATE $? "mysql-server"
-
+fi
 
 
