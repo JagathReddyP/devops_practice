@@ -27,7 +27,7 @@ if [ $? -ne 0 ]
 then
 
 echo "mysql-server is not installed, installing.... it now"
-dnf install mysql-serverrk -y
+dnf install mysql-server -y
 if [ $? -ne 0 ]
 then
 echo "mysql-server installation was failed.. check logs"
