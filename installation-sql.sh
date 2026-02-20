@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# -eq equal, -ne not equal, -gt	greater than, -lt less than, -ge greater or equal, -le	less or equal
+# -u it only displays user id details not gid or groups id
+
 # installing app with script
 #1. check the user has root access or not
 #2. if root access, proceed with the script
@@ -8,8 +11,7 @@
 #5. if not installed, install it
 #6. check it is success or not
 
-# -eq equal, -ne not equal, -gt	greater than, -lt less than, -ge greater or equal, -le	less or equal
-# -u it only displays user id details not gid or groups id
+
 
 userid=$(id -u)
 echo "userid is $userid"
