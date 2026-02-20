@@ -28,7 +28,14 @@ then
 
 echo "mysql-server is not installed, installing.... it now"
 dnf install mysql-server -y
-echo "mysql-server is installed"
+if [ $? -ne 0 ]
+then
+echo "mysql-server installation was failed.. check logs"
+exit 1
+else
+echo "mysql-server was successfully installed"
+fi
+
 else
 echo "my-sql was already installed"
 fi
