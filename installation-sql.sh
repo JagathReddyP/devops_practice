@@ -8,6 +8,7 @@
 #5. if not installed, install it
 #6. check it is success or not
 
+# -eq equal, -ne not equal, -gt	greater than, -lt less than, -ge greater or equal, -le	less or equal
 # -u it only displays user id details not gid or groups id
 
 userid=$(id -u)
@@ -18,11 +19,18 @@ echo "please switch to root user and rerun the program"
 exit 1
 fi
 
-# else
+dnf list installed mysql-server
 
-# echo "installing mysql-server"
-# dnf install mysql-server -y
+if [ $? -ne 0 ]
+then
 
-# fi
+echo "mysql-server is not installed, installing.... it now"
+dnf install mysql-server -y
+echo "mysql-server is installed"
+else
+echo "my-sql was already installed"
+fi
+
+
 
 
