@@ -11,8 +11,15 @@ echo "userid is $userid"
 
 VALIDATE() {
 
-echo "exit status: $1"
+if [ $1 -ne 0 ]
+then
+echo "$2 is FAILED"
+exit 1
+else
+echo "$2 is SUCCESS"
+fi
 }
+
 if [ $userid -ne 0 ]
 then
 echo "please switch to root user and rerun the program"
@@ -26,8 +33,11 @@ VALIDATE $?
 # if [ $? -ne 0 ]
 # then
 
-# echo "mysql-server is not installed, installing.... it now"
-# dnf install mysql-server -y
+echo "mysql-server is not installed, installing.... it now"
+
+dnf install mysql-server -y
+
+VALIDATE $?
 # if [ $? -ne 0 ]
 # then
 # echo "mysql-server installation was failed.. check logs"
