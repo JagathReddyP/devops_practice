@@ -6,18 +6,18 @@
 
 userid=$(id -u)
 
-R=\e[31m
-G=\e[32m
-N=\e[0m
+R="\e[31m"
+G="\e[32m"
+N="\e[0m"
 echo "userid is $userid"
 
 VALIDATE() {
 if [ $1 -ne 0 ]
 then
-echo "$2 is -e $R FAILED"
+echo -e "$2 is -e $R FAILED"
 exit 1
 else
-echo "$2 is -e $G SUCCESS"
+echo -e "$2 is -e $G SUCCESS"
 fi
 }
 
