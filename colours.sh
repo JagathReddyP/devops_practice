@@ -32,7 +32,7 @@ if [ $? -ne 0 ]
 then
 echo "git is not installed, installing.... it now"
 dnf install git -y
-VALIDATE $? git
+VALIDATE $? "git install"
 fi
 
 dnf list installed mysql-server
@@ -40,5 +40,5 @@ if [ $? -ne 0 ]
 then
 echo "mysql-server is not installed, installing.... it now"
 dnf install mysql-serverr -y
-VALIDATE $? "mysql-server"
+VALIDATE $? "mysql-server installation"
 fi
