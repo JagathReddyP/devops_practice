@@ -7,7 +7,7 @@ done
 
 #if there are multiple number use as below 
 
-for i in {0...25}
+for i in {0..25}
 do 
    echo $i
 done   
