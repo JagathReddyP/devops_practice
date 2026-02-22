@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # -eq equal, -ne not equal, -gt	greater than, -lt less than, -ge greater or equal, -le	less or equal
 # -u it only displays user id details not gid or groups id
 
@@ -32,18 +31,8 @@ fi
 
 check_root 
 
-dnf list installed git
-if [ $? -ne 0 ]
-then
-echo "git is not installed, installing.... it now"
-dnf install git -y
-VALIDATE $? "git install"
-fi
-
-dnf list installed mysql-server
-if [ $? -ne 0 ]
-then
-echo "mysql-server is not installed, installing.... it now"
-dnf install mysql-server -y
-VALIDATE $? "mysql-server installation"
-fi
+# we use as follows sh loops-installation.sh git mysql-server nginx 
+for package in $@ # $@ refers to all arguments passed to it
+do
+ echo $package
+done
