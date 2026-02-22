@@ -32,7 +32,16 @@ fi
 check_root 
 
 # we use as follows sh loops-installation.sh git mysql-server nginx 
-for package in $@ # $@ refers to all arguments passed to it
+for package in "$@" # $@ refers to all arguments passed to it
 do
- echo $package
+  dnf list installed $package
+if [ $? -ne 0 ]
+then
+echo  " $package is not installed..installing it now"
+dnf install $package -y
+VALIDATE $? " installing $package "
+else
+echo " $package was already installed"
+fi
+ 
 done
