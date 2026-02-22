@@ -6,6 +6,7 @@ echo $i
 done
 
 #if there are multiple number use as below 
+#only two dots mustbe used in between numbers ".."
 
 for i in {0..25}
 do 
