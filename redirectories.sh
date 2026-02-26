@@ -19,9 +19,9 @@ CHECK_ROOT() {
 VALIDATE() {
     if [ $1 -ne 0 ]
     then
-     echo -e " $2 was $R failed $N "
+     echo -e " $2 installation was $R failed $N "
     else
-     echo -e " $2 was $G Success $N"
+     echo -e " $2 installation was $G Success $N"
     fi
 }
 CHECK_ROOT
