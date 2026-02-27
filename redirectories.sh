@@ -16,6 +16,7 @@ mkdir -p "$LOGS_FOLDER"
 R="\e[31m"
 G="\e[32m"
 N="\e[0m"
+Y="\e[33m"
 
 USERID=$(id -u)
 
@@ -62,7 +63,7 @@ then
      dnf install "$package" -y &>>"$LOG_FILE"
      VALIDATE $? "$package"
    else
-     echo -e " $package $G was already installed nothing to do $N"|tee -a "$LOG_FILE"
+     echo -e " $package $Y was already installed nothing to do $N"|tee -a "$LOG_FILE"
    fi
    done
 
