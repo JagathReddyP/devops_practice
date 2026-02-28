@@ -20,3 +20,4 @@ echo "$SOURCE_DIR $R Doesn't Exists $N"
 fi
 
 FILES=$(find $SOURCE_DIR -name "*.log" -mtime +14)
+echo "Files: $FILES"
