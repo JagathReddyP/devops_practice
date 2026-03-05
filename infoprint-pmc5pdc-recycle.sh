@@ -10,7 +10,7 @@ USERID=$(id -u)
 CHECK_ROOT() {
     if [ "$USERID" -ne 0 ]
     then
-     echo -e " you are not a root user, $R switch to root user $N "|tee -a "$LOG_FILE"
+     echo -e " you are not a root user, $R switch to root user $N "
      exit 1
     fi
 }
