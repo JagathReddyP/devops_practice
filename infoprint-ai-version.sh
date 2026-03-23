@@ -1,241 +1,212 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # -----------------------------------------
-# Idempotent Infoprint Restart Script (AIX)
+# Production Infoprint Restart Script (AIX)
 # -----------------------------------------
 
-R="\e[31m"
-G="\e[32m"
-Y="\e[33m"
-N="\e[0m"
+# ---------------- Colors ----------------
+R="\033[31m"
+G="\033[32m"
+Y="\033[33m"
+N="\033[0m"
 
+# ---------------- Files -----------------
 LOGFILE="/tmp/infoprint_restart.log"
+LOCKFILE="/tmp/infoprint_restart.lock"
 
 USERID=$(id -u)
 
-# -----------------------------------------
-# Logging Function
-# -----------------------------------------
+# ---------------- Logging ----------------
 log() {
     msg="$(date '+%Y-%m-%d %H:%M:%S') $1"
-    echo "$msg" | tee -a "$LOGFILE"
+    echo -e "$msg"          # Terminal output
+    echo "$msg" >> "$LOGFILE"  # Clean logfile
 }
 
-# -----------------------------------------
-# Root Validation
-# -----------------------------------------
-CHECK_ROOT() {
-    if [ "$USERID" -ne 0 ]; then
-        echo -e "${R}You are not root user. Switch to root.${N}" | tee -a "$LOGFILE"
-        exit 1
-    fi
-}
-
-# -----------------------------------------
-# Command Validation
-# -----------------------------------------
-CHECK_COMMANDS() {
-
-    for cmd in pdls start_server stop_server
-    do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            echo -e "${R}$cmd command not found. Exiting.${N}" | tee -a "$LOGFILE"
-            exit 1
-        fi
-    done
-}
-
-# -----------------------------------------
-# Validation Function
-# -----------------------------------------
-VALIDATE() {
-
-    if [ "$1" -ne 0 ]; then
-        echo -e "$2 ${R}FAILED${N}" | tee -a "$LOGFILE"
+# ---------------- Lock Handling ----------------
+if [ -f "$LOCKFILE" ]; then
+    pid=$(cat "$LOCKFILE" 2>/dev/null)
+    if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
+        echo "Script already running (PID $pid). Exiting."
         exit 1
     else
-        echo -e "$2 ${G}SUCCESS${N}" | tee -a "$LOGFILE"
+        echo "Removing stale lock file"
+        rm -f "$LOCKFILE"
+    fi
+fi
+
+echo $$ > "$LOCKFILE"
+trap 'rm -f "$LOCKFILE"; log "Script interrupted"; exit 1' INT TERM
+trap 'rm -f "$LOCKFILE"' EXIT
+
+# ---------------- Root Check ----------------
+if [ "$USERID" -ne 0 ]; then
+    log "${R}ERROR: Must be root user${N}"
+    exit 1
+fi
+
+# ---------------- Command Check ----------------
+for cmd in pdls start_server stop_server; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        log "${R}ERROR: $cmd not found${N}"
+        exit 1
+    fi
+done
+
+# ---------------- Validation Function ----------------
+validate() {
+    rc=$1
+    msg="$2"
+    if [ "$rc" -ne 0 ]; then
+        log "${R}$msg FAILED${N}"
+        return 1
+    else
+        log "${G}$msg SUCCESS${N}"
+        return 0
     fi
 }
 
-# -----------------------------------------
-# Get Server Status
-# -----------------------------------------
-GET_STATUS() {
-
+# ---------------- Get Server Status ----------------
+get_status() {
     srv="$1"
-
-    status=$(pdls -cserv "${srv}:" 2>/dev/null | grep server | awk '{print $2}')
-
-    if [ -z "$status" ]; then
-        echo "DISCONNECTED"
-    else
-        echo "$status"
-    fi
+    status=$(pdls -cserv "${srv}:" 2>/dev/null | awk '/server/ {print $2}' | head -1)
+    [ -z "$status" ] && echo "DISCONNECTED" || echo "$status"
 }
 
-# -----------------------------------------
-# Wait for server to CONNECT
-# -----------------------------------------
-WAIT_FOR_CONNECTED() {
-
+# ---------------- Wait for CONNECTED ----------------
+wait_for_connected() {
     srv="$1"
     port="$2"
     max_wait="$3"
     retries="$4"
+
     waited=0
+    total_waited=0
+    total_limit=1800  # 30 min safety
 
-    status=$(GET_STATUS "$srv")
-
-    if [ "$status" = "CONNECTED" ]; then
-        log "$srv already CONNECTED"
-        return
-    fi
-
-    while true
-    do
-        status=$(GET_STATUS "$srv")
-
+    while true; do
+        status=$(get_status "$srv")
         if [ "$status" = "CONNECTED" ]; then
-            log "$srv successfully CONNECTED"
-            break
+            log "${G}$srv CONNECTED${N}"
+            return 0
         fi
 
         sleep 10
         waited=$((waited+10))
+        total_waited=$((total_waited+10))
+
+        if [ "$total_waited" -ge "$total_limit" ]; then
+            log "${R}FATAL: $srv exceeded max wait limit${N}"
+            return 1
+        fi
 
         if [ "$waited" -ge "$max_wait" ]; then
-
             if [ "$retries" -gt 0 ]; then
-                echo -e "${Y}Retrying start for $srv...${N}" | tee -a "$LOGFILE"
+                log "${Y}Retrying start for $srv${N}"
                 start_server -p "$port" "$srv"
+                validate $? "Retry start $srv"
                 retries=$((retries-1))
                 waited=0
             else
-                echo -e "${R}ERROR:${N} $srv did not CONNECT after $max_wait seconds" | tee -a "$LOGFILE"
-                exit 1
+                log "${R}ERROR: $srv failed to CONNECT${N}"
+                return 1
             fi
-
         fi
     done
 }
 
-# -----------------------------------------
-# MAIN
-# -----------------------------------------
-
-# Fresh log
+# ---------------- Initialization ----------------
 > "$LOGFILE"
+log "Starting Infoprint Restart"
 
-log "Starting Infoprint Restart Script"
+servers=(pmc5pdc pmc5pdca pmc5pdcb pmc5pdcc pmc5pdcd pmc5pdce pmc5pdcf pmc5pdcg pmc5pdch pmc5pdci)
 
-CHECK_ROOT
-CHECK_COMMANDS
+declare -A ports=( [pmc5pdc]=6874 [pmc5pdca]=6876 [pmc5pdcb]=6878 [pmc5pdcc]=6880 [pmc5pdcd]=6882 [pmc5pdce]=6884 [pmc5pdcf]=6886 [pmc5pdcg]=6888 [pmc5pdch]=6890 [pmc5pdci]=6892 )
 
-servers=(
-pmc5pdc
-pmc5pdca
-pmc5pdcb
-pmc5pdcc
-pmc5pdcd
-pmc5pdce
-pmc5pdcf
-pmc5pdcg
-pmc5pdch
-pmc5pdci
-)
+FAILED_SERVERS=()
+SUCCESS_SERVERS=()
 
-# -----------------------------------------
-# Core Cleanup
-# -----------------------------------------
+# ---------------- Core Cleanup ----------------
+log "${Y}Cleaning core files${N}"
 
-echo -e "${Y}Cleaning core files...${N}" | tee -a "$LOGFILE"
-
-for srv in "${servers[@]}"
-do
-    path="/var/pd/${srv}/core"
-
-    if [ -f "$path" ]; then
-        log "Deleting core file $path"
-        rm -f "$path"
-        VALIDATE $? "Removing $path"
+for srv in "${servers[@]}"; do
+    core_file="/var/pd/${srv}/core"
+    if [ -f "$core_file" ]; then
+        log "Removing core file for $srv"
+        rm -f "$core_file"
+        validate $? "Core cleanup $srv"
     else
-        log "No core file found for $srv"
+        log "No core file for $srv"
     fi
 done
 
-echo "-------------------------------------" | tee -a "$LOGFILE"
+log "-------------------------------------"
 
-# -----------------------------------------
-# Stop Servers (Reverse Order)
-# -----------------------------------------
+# ---------------- Stop Servers ----------------
+log "${Y}Stopping servers${N}"
 
-echo -e "${Y}Stopping Infoprint servers...${N}" | tee -a "$LOGFILE"
-
-for (( index=${#servers[@]}-1 ; index>=0 ; index-- ))
-do
-
-    srv="${servers[index]}"
-
-    status=$(GET_STATUS "$srv")
-
+for (( i=${#servers[@]}-1; i>=0; i-- )); do
+    srv="${servers[i]}"
+    status=$(get_status "$srv")
     if [ "$status" != "DISCONNECTED" ]; then
-
-        log "Stopping $srv (Current Status: $status)"
-
+        log "Stopping $srv ($status)"
         stop_server "$srv"
-
-        VALIDATE $? "Stopping $srv"
-
+        validate $? "Stop $srv"
     else
-
-        log "$srv already DISCONNECTED"
-
+        log "$srv already stopped"
     fi
-
 done
 
-echo "-------------------------------------" | tee -a "$LOGFILE"
+log "-------------------------------------"
 
-# -----------------------------------------
-# Start Servers
-# -----------------------------------------
+# ---------------- Start Servers ----------------
+log "${Y}Starting servers${N}"
 
-echo -e "${Y}Starting Infoprint servers...${N}" | tee -a "$LOGFILE"
-
-PORT=6874
 MAX_WAIT=600
 RETRIES=2
 
-for srv in "${servers[@]}"
-do
-
-    status=$(GET_STATUS "$srv")
+for srv in "${servers[@]}"; do
+    port="${ports[$srv]}"
+    status=$(get_status "$srv")
 
     if [ "$status" != "CONNECTED" ]; then
+        log "Starting $srv on port $port"
+        start_server -p "$port" "$srv"
+        validate $? "Start $srv"
 
-        log "Starting $srv on port $PORT"
-
-        start_server -p "$PORT" "$srv"
-
-        VALIDATE $? "Starting $srv"
-
-        log "Waiting for $srv to CONNECT..."
-
-        WAIT_FOR_CONNECTED "$srv" "$PORT" "$MAX_WAIT" "$RETRIES"
-
+        log "Waiting for $srv..."
+        if wait_for_connected "$srv" "$port" "$MAX_WAIT" "$RETRIES"; then
+            SUCCESS_SERVERS+=("$srv")
+        else
+            FAILED_SERVERS+=("$srv")
+            continue
+        fi
     else
-
         log "$srv already CONNECTED"
-
+        SUCCESS_SERVERS+=("$srv")
     fi
 
-    echo -e "$srv started successfully on port ${G}$PORT${N}" | tee -a "$LOGFILE"
-
-    PORT=$((PORT+2))
-
-    echo "-------------------------------------" | tee -a "$LOGFILE"
-
+    log "$srv running on port $port"
+    log "-------------------------------------"
 done
 
-log "All Infoprint servers restarted successfully"
+# ---------------- Summary ----------------
+log "Restart Summary"
+
+log "${G}Successful:${N}"
+for s in "${SUCCESS_SERVERS[@]}"; do
+    log "  - $s"
+done
+
+log "${R}Failed:${N}"
+for s in "${FAILED_SERVERS[@]}"; do
+    log "  - $s"
+done
+
+if [ "${#FAILED_SERVERS[@]}" -ne 0 ]; then
+    log "${R}Some servers failed${N}"
+    exit 1
+else
+    log "${G}All servers restarted successfully${N}"
+    exit 0
+fi
